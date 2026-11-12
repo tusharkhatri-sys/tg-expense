@@ -118,6 +118,8 @@ body,
   min-height: 100%;
   width: 100%;
   margin: 0;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -125,6 +127,7 @@ body {
   color: var(--text);
   background: var(--bg);
   overflow-x: hidden;
+  overscroll-behavior-y: none;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.4s var(--spring-soft), color 0.3s var(--spring-soft);
@@ -3937,5 +3940,26 @@ header.glass-header {
   background: var(--surface-subtle);
   border: 1px solid var(--glass-border);
 }
+
+.app,
+.main {
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+@keyframes spin360 {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.icon-glass.spinning svg {
+  animation: spin360 0.55s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  color: var(--blue);
+}
+
 
 

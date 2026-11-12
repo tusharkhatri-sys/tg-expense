@@ -271,6 +271,7 @@ function App() {
   const [statementOpen, SO] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [cloudLastSync, setCloudLastSync] = useState<string>('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -283,17 +284,83 @@ function App() {
   activeCurrencyCode = d.currency || 'INR';
   activeDateFormat = d.dateFormat || 'DD MMM YYYY';
 
+  const refreshFromSupabase = async (uid: string = TUSHAR_USER_ID, silent = true) => {
+    if (!navigator.onLine) {
+      setCloudStatus('error');
+      return;
+    }
+    if (!silent) {
+      setIsRefreshing(true);
+      setCloudStatus('syncing');
+    }
+    const res = await fetchLiveSupabaseData(uid);
+    if (!silent) {
+      setTimeout(() => setIsRefreshing(false), 450);
+    }
+    if (res.ok && res.data) {
+      skipNextLiveSave.current = true;
+      activeCurrencyCode = res.data.currency || 'INR';
+      activeDateFormat = res.data.dateFormat || 'DD MMM YYYY';
+      S({ ...empty, ...res.data });
+      if (res.opening) O(res.opening);
+      if (res.data.theme) {
+        B(
+          res.data.theme === 'dark' ||
+            (res.data.theme === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+        );
+      }
+      liveLoaded.current = true;
+      setCloudStatus('synced');
+      setCloudLastSync(
+        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      );
+    } else if (!silent) {
+      setCloudStatus('error');
+    }
+  };
+
   useEffect(() => {
-    const goOnline = () => setIsOnline(true);
+    const goOnline = () => {
+      setIsOnline(true);
+      refreshFromSupabase(TUSHAR_USER_ID, true);
+    };
     const goOffline = () => {
       setIsOnline(false);
       setCloudStatus('error');
     };
+    // Lock browser reload keys (F5 / Ctrl+R / Cmd+R) so the page never hard-reloads
+    const lockBrowserReload = (e: KeyboardEvent) => {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r')) {
+        e.preventDefault();
+        refreshFromSupabase(TUSHAR_USER_ID, false);
+      }
+    };
+    // Lock mobile two-finger / pull-down overscroll refresh
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0]?.clientY || 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const currentY = e.touches[0]?.clientY || 0;
+      if (window.scrollY <= 0 && currentY > startY + 10 && e.cancelable) {
+        const target = e.target as HTMLElement | null;
+        if (!target?.closest('.dialog, .tx-table, .statement-preview-body')) {
+          e.preventDefault();
+        }
+      }
+    };
     window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
+    window.addEventListener('keydown', lockBrowserReload);
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
     return () => {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
+      window.removeEventListener('keydown', lockBrowserReload);
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
     };
   }, []);
 
@@ -317,66 +384,43 @@ function App() {
     return () => clearTimeout(t);
   }, []);
 
-  const refreshFromSupabase = async (uid: string = TUSHAR_USER_ID) => {
-    if (!navigator.onLine) {
-      setCloudStatus('error');
-      return;
-    }
-    setCloudStatus('syncing');
-    const res = await fetchLiveSupabaseData(uid);
-    if (res.ok && res.data) {
-      skipNextLiveSave.current = true;
-      activeCurrencyCode = res.data.currency || 'INR';
-      activeDateFormat = res.data.dateFormat || 'DD MMM YYYY';
-      S({ ...empty, ...res.data });
-      if (res.opening) O(res.opening);
-      if (res.data.theme) {
-        B(
-          res.data.theme === 'dark' ||
-            (res.data.theme === 'system' &&
-              window.matchMedia('(prefers-color-scheme: dark)').matches)
-        );
-      }
-      liveLoaded.current = true;
-      setCloudStatus('synced');
-      setCloudLastSync(
-        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
-    } else {
-      setCloudStatus('error');
-    }
-  };
-
-  // Initial Live Fetch + Supabase Realtime Subscription for TUSHAR
+  // Automatic Silent Live Fetch + Supabase Realtime Stream + Background Heartbeat
   useEffect(() => {
     let cancelled = false;
-    refreshFromSupabase(TUSHAR_USER_ID);
+    refreshFromSupabase(TUSHAR_USER_ID, true);
+
+    const canSilentRefresh = () =>
+      !cancelled &&
+      !savingInFlight.current &&
+      Date.now() - lastLocalWriteAt.current > 1500 &&
+      navigator.onLine;
 
     const channel = subscribeToLiveSupabase(TUSHAR_USER_ID, () => {
-      if (
-        !cancelled &&
-        !savingInFlight.current &&
-        Date.now() - lastLocalWriteAt.current > 1500
-      ) {
-        refreshFromSupabase(TUSHAR_USER_ID);
+      if (canSilentRefresh()) {
+        refreshFromSupabase(TUSHAR_USER_ID, true);
       }
     });
 
-    const onFocus = () => {
-      if (
-        !cancelled &&
-        !savingInFlight.current &&
-        Date.now() - lastLocalWriteAt.current > 1500 &&
-        navigator.onLine
-      ) {
-        refreshFromSupabase(TUSHAR_USER_ID);
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible' && canSilentRefresh()) {
+        refreshFromSupabase(TUSHAR_USER_ID, true);
       }
     };
-    window.addEventListener('focus', onFocus);
+
+    const autoLiveTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && canSilentRefresh()) {
+        refreshFromSupabase(TUSHAR_USER_ID, true);
+      }
+    }, 12000);
+
+    window.addEventListener('focus', onVisibilityOrFocus);
+    document.addEventListener('visibilitychange', onVisibilityOrFocus);
 
     return () => {
       cancelled = true;
-      window.removeEventListener('focus', onFocus);
+      clearInterval(autoLiveTimer);
+      window.removeEventListener('focus', onVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -895,23 +939,21 @@ function App() {
             <b>{page === 'Transactions' ? 'Expenses' : page}</b>
           </div>
           <div className="header-actions">
-            <button
-              type="button"
+            <div
               className={`cloud-sync-pill ${!isOnline ? 'error' : cloudStatus}`}
-              onClick={() => refreshFromSupabase(TUSHAR_USER_ID)}
-              title={`Live Supabase Database (${TUSHAR_USER_NAME}) — Click to refresh`}
+              title={`Auto-Live Supabase Stream (${TUSHAR_USER_NAME})`}
             >
               <span className="cloud-status-dot" />
               <span className="cloud-sync-text">
                 {!isOnline
                   ? 'Offline'
                   : cloudStatus === 'syncing'
-                    ? 'Saving Live...'
+                    ? 'Saving...'
                     : cloudStatus === 'error'
                       ? 'Connection Error'
                       : `${TUSHAR_USER_NAME} · Live`}
               </span>
-            </button>
+            </div>
             <div className="month-pill-wrap">
               <CalendarDays size={14} />
               <select
@@ -927,6 +969,15 @@ function App() {
                 ))}
               </select>
             </div>
+            <button
+              type="button"
+              className={isRefreshing ? 'icon-glass spinning' : 'icon-glass'}
+              onClick={() => refreshFromSupabase(TUSHAR_USER_ID, false)}
+              aria-label="In-app live refresh"
+              title="In-app instant refresh (Browser reload is locked)"
+            >
+              <RefreshCw size={16} />
+            </button>
             <button
               className="icon-glass"
               onClick={() => Z(!hidden)}
@@ -1891,13 +1942,9 @@ function App() {
                         </div>
 
                         <div className="supabase-sync-actions">
-                          <button
-                            type="button"
-                            className="secondary"
-                            onClick={() => refreshFromSupabase(TUSHAR_USER_ID)}
-                          >
-                            <RefreshCw size={15} /> Refresh Live Data
-                          </button>
+                          <span className="supa-feature-chip">
+                            <Check size={13} /> Auto-Live Stream Active (No Refresh Needed)
+                          </span>
                         </div>
                       </div>
                     </div>
