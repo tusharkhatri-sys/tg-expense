@@ -1,0 +1,1 @@
+{"name":"TG Expense","short_name":"TG Expense","description":"Personal finance and expense tracker","start_url":"/","scope":"/","display":"standalone","orientation":"portrait-primary","background_color":"#f4f5f7","theme_color":"#647be8","icons":[{"src":"/app-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
