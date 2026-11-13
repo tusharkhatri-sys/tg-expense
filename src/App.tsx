@@ -3411,17 +3411,14 @@ function StatementDialog({
     year: 'numeric'
   });
 
-  // Compute account balances at start of selectedMonth (before monthStart) and end of selectedMonth
-  const txBeforeMonth = tx.filter(t => t.date < monthStart);
+  // Compute account balances as of the end of selectedMonth
   const txUpToMonthEnd = tx.filter(t => t.date <= monthEnd);
   const txInMonth = tx
     .filter(t => t.date >= monthStart && t.date <= monthEnd)
     .sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
 
-  const openingAccounts = recalculateBalances(accounts, txBeforeMonth, opening);
   const closingAccounts = recalculateBalances(accounts, txUpToMonthEnd, opening);
 
-  const openingTotal = roundCurrency(openingAccounts.reduce((s, a) => s + a.balance, 0));
   const closingTotal = roundCurrency(closingAccounts.reduce((s, a) => s + a.balance, 0));
 
   const monthExpenses = txInMonth.filter(t => t.type === 'Expense');
@@ -3485,32 +3482,27 @@ function StatementDialog({
             </div>
           </div>
 
-          {/* 5-Step Flow Summary */}
+          {/* 4-Step Flow Summary */}
           <div className="stmt-flow-grid">
-            <div className="stmt-flow-card">
-              <span>1. Opening Balance</span>
-              <strong>{money(openingTotal)}</strong>
-              <small>As of {dateLabel(monthStart)}</small>
-            </div>
             <div className="stmt-flow-card expense">
-              <span>2. Monthly Expenses</span>
+              <span>1. Monthly Expenses</span>
               <strong>-{money(totalExpense)}</strong>
               <small>
                 Bank: {money(bankExpenses)} • Cash: {money(cashExpenses)}
               </small>
             </div>
             <div className="stmt-flow-card transfer">
-              <span>3. Bank ↔ Cash Transfers</span>
+              <span>2. Bank ↔ Cash Transfers</span>
               <strong>{money(totalTransfer)}</strong>
               <small>{monthTransfers.length} internal transfer(s)</small>
             </div>
             <div className="stmt-flow-card repayment">
-              <span>4. Repayments to Father</span>
+              <span>3. Repayments to Father</span>
               <strong>-{money(totalRepaid)}</strong>
               <small>{monthRepayments.length} return entry(s)</small>
             </div>
             <div className="stmt-flow-card closing">
-              <span>5. Closing Balance</span>
+              <span>4. Closing Balance</span>
               <strong>{money(closingTotal)}</strong>
               <small>As of {dateLabel(monthEnd)}</small>
             </div>
@@ -3525,19 +3517,16 @@ function StatementDialog({
                   <tr>
                     <th>Account</th>
                     <th>Type</th>
-                    <th>Opening ({dateLabel(monthStart)})</th>
                     <th>Closing ({dateLabel(monthEnd)})</th>
                   </tr>
                 </thead>
                 <tbody>
                   {accounts.map(acc => {
-                    const openAcc = openingAccounts.find(a => a.id === acc.id);
                     const closeAcc = closingAccounts.find(a => a.id === acc.id);
                     return (
                       <tr key={acc.id}>
                         <td><b>{acc.name}</b></td>
                         <td>{isCashAccount(acc) ? 'Cash Account' : 'Bank Account'}</td>
-                        <td>{money(openAcc?.balance || 0)}</td>
                         <td><b>{money(closeAcc?.balance || 0)}</b></td>
                       </tr>
                     );

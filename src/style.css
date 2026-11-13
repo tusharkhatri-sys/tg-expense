@@ -3652,7 +3652,7 @@ header.glass-header {
 
 @media (min-width: 680px) {
   .stmt-flow-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -3886,7 +3886,7 @@ header.glass-header {
   }
 
   .stmt-flow-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 
   .stmt-table tr {
