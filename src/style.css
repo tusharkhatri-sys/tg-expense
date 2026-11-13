@@ -1535,6 +1535,7 @@ header.glass-header {
 
 .tx-detail-modal {
   max-width: 480px;
+  padding-bottom: 20px;
 }
 
 .tx-detail-title-row {
@@ -3775,9 +3776,37 @@ header.glass-header {
 }
 
 @media print {
-  body {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  :root,
+  [data-theme="dark"] {
+    --text: #0f172a !important;
+    --ink: #0f172a !important;
+    --muted: #475569 !important;
+    --bg: #ffffff !important;
+    --surface: #ffffff !important;
+    --surface-strong: #ffffff !important;
+    --surface-subtle: #f8fafc !important;
+    --surface-pill: #f8fafc !important;
+    --border: #cbd5e1 !important;
+    --line: #cbd5e1 !important;
+    --glass-border: #cbd5e1 !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
     background: #ffffff !important;
     color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .ambient-canvas,
@@ -3786,6 +3815,7 @@ header.glass-header {
   .bottom-nav,
   .page-stage,
   .toast,
+  .splash-screen,
   .no-print {
     display: none !important;
   }
@@ -3793,27 +3823,55 @@ header.glass-header {
   .app-shell,
   .main-stage {
     display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
     padding: 0 !important;
     margin: 0 !important;
+    overflow: visible !important;
   }
 
+  .backdrop,
   .statement-backdrop {
     position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    height: auto !important;
+    width: 100% !important;
     background: transparent !important;
     backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    animation: none !important;
     padding: 0 !important;
+    margin: 0 !important;
     display: block !important;
+    overflow: visible !important;
   }
 
+  .dialog,
   .statement-dialog {
+    position: static !important;
+    max-width: none !important;
     max-height: none !important;
     width: 100% !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
     border: 0 !important;
     padding: 0 !important;
+    margin: 0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    animation: none !important;
+    transform: none !important;
     overflow: visible !important;
+  }
+
+  .printable-statement,
+  .printable-statement * {
+    color: #0f172a !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .stmt-banner,
@@ -3821,13 +3879,26 @@ header.glass-header {
   .stmt-table-wrap,
   .stmt-live-badge {
     background: #ffffff !important;
-    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
     color: #0f172a !important;
     box-shadow: none !important;
+    break-inside: avoid;
   }
 
   .stmt-flow-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  .stmt-table tr {
+    break-inside: avoid;
+  }
+
+  .stmt-amt.expense {
+    color: #dc2626 !important;
+  }
+
+  .stmt-amt.transfer {
+    color: #4f46e5 !important;
   }
 }
 

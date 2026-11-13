@@ -290,36 +290,47 @@ function App() {
   const refreshFromSupabase = async (uid: string = TUSHAR_USER_ID, silent = true) => {
     if (!navigator.onLine) {
       setCloudStatus('error');
+      if (!silent) N('You are offline — connect to internet to refresh');
       return;
     }
     if (!silent) {
       setIsRefreshing(true);
       setCloudStatus('syncing');
     }
-    const res = await fetchLiveSupabaseData(uid);
-    if (!silent) {
-      setTimeout(() => setIsRefreshing(false), 450);
-    }
-    if (res.ok && res.data) {
-      skipNextLiveSave.current = true;
-      activeCurrencyCode = res.data.currency || 'INR';
-      activeDateFormat = res.data.dateFormat || 'DD MMM YYYY';
-      S({ ...empty, ...res.data });
-      if (res.opening) O(res.opening);
-      if (res.data.theme) {
-        B(
-          res.data.theme === 'dark' ||
-            (res.data.theme === 'system' &&
-              window.matchMedia('(prefers-color-scheme: dark)').matches)
+    try {
+      const res = await fetchLiveSupabaseData(uid);
+      if (res.ok && res.data) {
+        skipNextLiveSave.current = true;
+        activeCurrencyCode = res.data.currency || 'INR';
+        activeDateFormat = res.data.dateFormat || 'DD MMM YYYY';
+        S({ ...empty, ...res.data });
+        if (res.opening) O(res.opening);
+        if (res.data.theme) {
+          B(
+            res.data.theme === 'dark' ||
+              (res.data.theme === 'system' &&
+                window.matchMedia('(prefers-color-scheme: dark)').matches)
+          );
+        }
+        liveLoaded.current = true;
+        setCloudStatus('synced');
+        setCloudLastSync(
+          new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         );
+        if (!silent) N('Live data refreshed from Supabase');
+      } else if (!silent) {
+        setCloudStatus('error');
+        N(res.error ? `Refresh failed: ${res.error}` : 'Could not refresh from Supabase');
       }
-      liveLoaded.current = true;
-      setCloudStatus('synced');
-      setCloudLastSync(
-        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
-    } else if (!silent) {
-      setCloudStatus('error');
+    } catch {
+      if (!silent) {
+        setCloudStatus('error');
+        N('Could not refresh from Supabase');
+      }
+    } finally {
+      if (!silent) {
+        setTimeout(() => setIsRefreshing(false), 450);
+      }
     }
   };
 
@@ -2754,8 +2765,13 @@ function TxDetailDialog({
       : accountName(tx.from);
 
   return (
-    <div className="backdrop" onClick={onClose}>
-      <div className="modal tx-detail-modal" onClick={e => e.stopPropagation()}>
+    <div
+      className="backdrop"
+      onMouseDown={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="dialog tx-detail-modal">
         <div className="modalhead">
           <div className="tx-detail-title-row">
             <span
