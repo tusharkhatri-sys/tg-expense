@@ -254,6 +254,7 @@ function App() {
   const [dialog, Q] = useState(false);
   const [kind, K] = useState('Expense');
   const [edit, E] = useState<T | null>(null);
+  const [detailTx, SDT] = useState<T | null>(null);
   const [search, H] = useState('');
   const [transferFilter, TF] = useState('All');
   const [categoryFilter, CF] = useState('All categories');
@@ -1387,6 +1388,7 @@ function App() {
                   <TxTable
                     items={recentExpenses.slice(0, 6)}
                     name={name}
+                    onSelect={SDT}
                     onEdit={openEdit}
                     onDelete={del}
                   />
@@ -1600,7 +1602,7 @@ function App() {
                         </button>
                       )}
                     </div>
-                    <TxTable items={expenseRows} groupedByDate name={name} onEdit={openEdit} onDelete={del} />
+                    <TxTable items={expenseRows} groupedByDate name={name} onSelect={SDT} onEdit={openEdit} onDelete={del} />
                   </>
                 ) : (
                   <Empty
@@ -1789,6 +1791,7 @@ function App() {
                   <TxTable
                     items={transferRows}
                     name={name}
+                    onSelect={SDT}
                     onEdit={openEdit}
                     onDelete={del}
                   />
@@ -2471,6 +2474,24 @@ function App() {
         />
       )}
 
+      {detailTx && (
+        <TxDetailDialog
+          tx={detailTx}
+          accountName={name}
+          onClose={() => SDT(null)}
+          onEdit={() => {
+            const target = detailTx;
+            SDT(null);
+            openEdit(target);
+          }}
+          onDelete={() => {
+            const target = detailTx;
+            SDT(null);
+            del(target);
+          }}
+        />
+      )}
+
       {dialog && (
         <TxDialog
           kind={kind}
@@ -2532,12 +2553,14 @@ function TxTable({
   items,
   groupedByDate = false,
   name,
+  onSelect,
   onEdit,
   onDelete
 }: {
   items: T[];
   groupedByDate?: boolean;
   name: (s: string) => string;
+  onSelect?: (t: T) => void;
   onEdit: (t: T) => void;
   onDelete: (t: T) => void;
 }) {
@@ -2550,7 +2573,23 @@ function TxTable({
           : catIcons[t.category] || ArrowUpRight;
 
     return (
-      <div className="txrow" key={t.id}>
+      <div
+        className={onSelect ? 'txrow clickable' : 'txrow'}
+        key={t.id}
+        role={onSelect ? 'button' : undefined}
+        tabIndex={onSelect ? 0 : undefined}
+        onClick={onSelect ? () => onSelect(t) : undefined}
+        onKeyDown={
+          onSelect
+            ? e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(t);
+                }
+              }
+            : undefined
+        }
+      >
         <span
           className={
             'txicon ' +
@@ -2585,7 +2624,10 @@ function TxTable({
           <button
             className="icon row-action"
             aria-label="Edit record"
-            onClick={() => onEdit(t)}
+            onClick={e => {
+              e.stopPropagation();
+              onEdit(t);
+            }}
             title="Edit"
           >
             <Edit3 size={14} />
@@ -2593,7 +2635,10 @@ function TxTable({
           <button
             className="icon row-action delete-action"
             aria-label="Delete record"
-            onClick={() => onDelete(t)}
+            onClick={e => {
+              e.stopPropagation();
+              onDelete(t);
+            }}
             title="Delete"
           >
             <Trash2 size={14} />
@@ -2671,6 +2716,130 @@ function Empty({
       <button className="primary" onClick={action}>
         <Plus size={17} /> Add record
       </button>
+    </div>
+  );
+}
+
+function TxDetailDialog({
+  tx,
+  accountName,
+  onClose,
+  onEdit,
+  onDelete
+}: {
+  tx: T;
+  accountName: (id: string) => string;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const CatIcon =
+    tx.type === 'Transfer'
+      ? ArrowLeftRight
+      : tx.type === 'Repayment'
+        ? Repeat
+        : catIcons[tx.category] || ArrowUpRight;
+
+  const { dateText, weekdayText } = formatDateGroupHeader(tx.date);
+  const typeLabel =
+    tx.type === 'Repayment'
+      ? 'Repayment to Father'
+      : tx.type === 'Transfer'
+        ? 'Bank ↔ Cash Transfer'
+        : 'Expense';
+
+  const accountDisplay =
+    tx.type === 'Transfer' && tx.to
+      ? `${accountName(tx.from)} → ${accountName(tx.to)}`
+      : accountName(tx.from);
+
+  return (
+    <div className="backdrop" onClick={onClose}>
+      <div className="modal tx-detail-modal" onClick={e => e.stopPropagation()}>
+        <div className="modalhead">
+          <div className="tx-detail-title-row">
+            <span
+              className={
+                'txicon ' +
+                (tx.type === 'Expense' || tx.type === 'Repayment' ? 'expense' : 'transfer')
+              }
+            >
+              <CatIcon size={18} />
+            </span>
+            <div>
+              <small className="label">{typeLabel.toUpperCase()}</small>
+              <h2>{tx.note || tx.category || typeLabel}</h2>
+            </div>
+          </div>
+          <button type="button" className="close-btn" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="tx-detail-amount-card">
+          <small>Total Amount</small>
+          <strong
+            className={
+              tx.type === 'Expense' || tx.type === 'Repayment'
+                ? 'tx-detail-amount red'
+                : 'tx-detail-amount'
+            }
+          >
+            {tx.type === 'Expense' || tx.type === 'Repayment' ? '−' : ''}
+            {money(tx.amount)}
+          </strong>
+        </div>
+
+        <div className="tx-detail-grid">
+          <div className="tx-detail-item">
+            <span>Type</span>
+            <b>{typeLabel}</b>
+          </div>
+          <div className="tx-detail-item">
+            <span>Category</span>
+            <b>{tx.category || typeLabel}</b>
+          </div>
+          <div className="tx-detail-item">
+            <span>Date</span>
+            <b>
+              {dateLabel(tx.date)}
+              {weekdayText ? ` (${weekdayText})` : ` (${dateText})`}
+            </b>
+          </div>
+          <div className="tx-detail-item">
+            <span>Time</span>
+            <b>{tx.time || 'Not recorded'}</b>
+          </div>
+          <div className="tx-detail-item">
+            <span>Account</span>
+            <b>{accountDisplay}</b>
+          </div>
+          <div className="tx-detail-item">
+            <span>Payment Method</span>
+            <b>{tx.payment || (tx.type === 'Transfer' ? 'Internal Transfer' : '—')}</b>
+          </div>
+          <div className="tx-detail-item full">
+            <span>Note / Description</span>
+            <b>{tx.note || 'No note added'}</b>
+          </div>
+          <div className="tx-detail-item full">
+            <span>Reference ID</span>
+            <b className="tx-detail-id">{tx.id}</b>
+          </div>
+        </div>
+
+        <div className="tx-detail-actions">
+          <button type="button" className="secondary" onClick={onEdit}>
+            <Edit3 size={15} /> Edit
+          </button>
+          <button type="button" className="danger-btn" onClick={onDelete}>
+            <Trash2 size={15} /> Delete
+          </button>
+          <button type="button" className="primary" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

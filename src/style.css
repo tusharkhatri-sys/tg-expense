@@ -1525,6 +1525,121 @@ header.glass-header {
   transition: background 0.22s var(--spring-smooth);
 }
 
+.txrow.clickable {
+  cursor: pointer;
+}
+
+.txrow.clickable:active {
+  transform: scale(0.992);
+}
+
+.tx-detail-modal {
+  max-width: 480px;
+}
+
+.tx-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tx-detail-title-row h2 {
+  word-break: break-word;
+}
+
+.tx-detail-amount-card {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tx-detail-amount-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tx-detail-amount {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.tx-detail-amount.red {
+  color: var(--red);
+}
+
+.tx-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.tx-detail-item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tx-detail-item.full {
+  grid-column: 1 / -1;
+}
+
+.tx-detail-item span {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tx-detail-item b {
+  font-size: 13.5px;
+  color: var(--ink);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.tx-detail-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px !important;
+  color: var(--muted) !important;
+}
+
+.tx-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tx-detail-actions .danger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--red);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
 .txrow:hover {
   background: var(--surface-subtle);
 }
