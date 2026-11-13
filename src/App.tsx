@@ -375,10 +375,9 @@ function App() {
   }, [d.theme]);
 
   useEffect(() => {
-    if (notice) {
-      const t = setTimeout(() => N(''), 2600);
-      return () => clearTimeout(t);
-    }
+    if (!notice) return;
+    const t = setTimeout(() => N(''), 2600);
+    return () => clearTimeout(t);
   }, [notice]);
 
   useEffect(() => {
