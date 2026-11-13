@@ -1354,6 +1354,95 @@ header.glass-header {
   padding: 6px 0 10px;
 }
 
+.tx-month-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface-subtle);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+[data-theme="dark"] .tx-month-bar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.tx-month-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-month-nav {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.55));
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.16s var(--spring-smooth), background 0.16s ease;
+}
+
+[data-theme="dark"] .tx-month-nav {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tx-month-nav:hover {
+  transform: translateY(-1px);
+}
+
+.tx-month-select {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.65));
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .tx-month-select {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.tx-month-today {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(99, 102, 241, 0.14);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tx-month-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tx-month-total b {
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .tx-date-groups {
   display: flex;
   flex-direction: column;

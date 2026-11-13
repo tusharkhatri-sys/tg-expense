@@ -16,6 +16,7 @@ import {
   Landmark,
   Eye,
   EyeOff,
+  ChevronLeft,
   ChevronRight,
   Edit3,
   Utensils,
@@ -260,6 +261,7 @@ function App() {
   const [paymentFilter, PF] = useState('All methods');
   const [dateFrom, DF] = useState('');
   const [dateTo, DT] = useState('');
+  const [txMonth, TM] = useState(() => toLocalMonthString());
   const [dark, B] = useState(() =>
     window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -618,12 +620,45 @@ function App() {
     N(exists ? 'Account balance updated in Supabase' : 'Account created in Supabase');
   };
 
-  // Strict Expense-only rows for Transactions & Home Recent Expenses
+  const txMonthOptions = useMemo(() => {
+    if (txMonth === 'ALL' || monthOptions.some(o => o.value === txMonth)) {
+      return monthOptions;
+    }
+    const [y, mo] = txMonth.split('-').map(Number);
+    const dt = new Date(y, mo - 1, 1);
+    return [
+      ...monthOptions,
+      {
+        value: txMonth,
+        label: dt.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+      }
+    ].sort((a, b) => b.value.localeCompare(a.value));
+  }, [monthOptions, txMonth]);
+
+  const shiftTxMonth = (delta: number) => {
+    const base = txMonth === 'ALL' ? toLocalMonthString() : txMonth;
+    const [yStr, mStr] = base.split('-');
+    const y = Number(yStr) || new Date().getFullYear();
+    const m = (Number(mStr) || new Date().getMonth() + 1) - 1;
+    TM(toLocalMonthString(new Date(y, m + delta, 1)));
+  };
+
+  const recentExpenses = useMemo(
+    () =>
+      d.tx
+        .filter(t => t.type === 'Expense')
+        .sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || '')),
+    [d.tx]
+  );
+
+  // Strict Expense-only rows for Transactions (month-scoped by default)
   const expenseRows = useMemo(
     () =>
       d.tx
         .filter(t => {
           if (t.type !== 'Expense') return false;
+          const matchesMonth =
+            Boolean(dateFrom || dateTo) || txMonth === 'ALL' || t.date.startsWith(txMonth);
           const matchesSearch = (t.note + ' ' + t.category + ' ' + name(t.from))
             .toLowerCase()
             .includes(search.toLowerCase());
@@ -638,6 +673,7 @@ function App() {
           const matchesFrom = !dateFrom || t.date >= dateFrom;
           const matchesTo = !dateTo || t.date <= dateTo;
           return (
+            matchesMonth &&
             matchesSearch &&
             matchesCat &&
             matchesAcc &&
@@ -647,7 +683,17 @@ function App() {
           );
         })
         .sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || '')),
-    [d.tx, d.accounts, search, categoryFilter, accountFilter, paymentFilter, dateFrom, dateTo]
+    [
+      d.tx,
+      d.accounts,
+      txMonth,
+      search,
+      categoryFilter,
+      accountFilter,
+      paymentFilter,
+      dateFrom,
+      dateTo
+    ]
   );
 
   // Strict Transfer & Repayment rows for the separate Bank Transfers page
@@ -1338,9 +1384,9 @@ function App() {
                     See all <ChevronRight size={15} />
                   </button>
                 </div>
-                {expenseRows.length ? (
+                {recentExpenses.length ? (
                   <TxTable
-                    items={expenseRows.slice(0, 6)}
+                    items={recentExpenses.slice(0, 6)}
                     name={name}
                     onEdit={openEdit}
                     onDelete={del}
@@ -1376,6 +1422,62 @@ function App() {
                 <button className="primary" onClick={() => open('Expense')}>
                   <Plus size={17} /> Add Expense
                 </button>
+              </div>
+
+              {/* Month Switcher Bar */}
+              <div className="tx-month-bar">
+                <div className="tx-month-controls">
+                  <button
+                    type="button"
+                    className="icon tx-month-nav"
+                    aria-label="Previous month"
+                    onClick={() => shiftTxMonth(-1)}
+                    title="Previous month"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <select
+                    aria-label="Filter expenses by month"
+                    className="tx-month-select"
+                    value={txMonth}
+                    onChange={e => TM(e.target.value)}
+                  >
+                    <option value="ALL">All months</option>
+                    {txMonthOptions.map(m => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="icon tx-month-nav"
+                    aria-label="Next month"
+                    onClick={() => shiftTxMonth(1)}
+                    title="Next month"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  {txMonth !== toLocalMonthString() && (
+                    <button
+                      type="button"
+                      className="tx-month-today"
+                      onClick={() => TM(toLocalMonthString())}
+                    >
+                      Current
+                    </button>
+                  )}
+                </div>
+                <div className="tx-month-total">
+                  <span>
+                    {dateFrom || dateTo
+                      ? 'Custom range'
+                      : txMonth === 'ALL'
+                        ? 'All-time expenses'
+                        : `${txMonthOptions.find(m => m.value === txMonth)?.label || txMonth} expenses`}
+                  </span>
+                  <b>{money(expenseRows.reduce((s, t) => s + t.amount, 0))}</b>
+                </div>
               </div>
 
               {/* Quick Category Filter Pills */}
