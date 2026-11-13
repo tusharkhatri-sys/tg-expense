@@ -1499,7 +1499,7 @@ function App() {
                         </button>
                       )}
                     </div>
-                    <TxTable items={expenseRows} name={name} onEdit={openEdit} onDelete={del} />
+                    <TxTable items={expenseRows} groupedByDate name={name} onEdit={openEdit} onDelete={del} />
                   </>
                 ) : (
                   <Empty
@@ -2416,77 +2416,135 @@ function App() {
   );
 }
 
+function formatDateGroupHeader(isoDate: string): { dateText: string; weekdayText: string } {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return { dateText: isoDate, weekdayText: '' };
+  }
+  return {
+    dateText: parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    weekdayText: parsed.toLocaleDateString('en-US', { weekday: 'long' })
+  };
+}
+
 function TxTable({
   items,
+  groupedByDate = false,
   name,
   onEdit,
   onDelete
 }: {
   items: T[];
+  groupedByDate?: boolean;
   name: (s: string) => string;
   onEdit: (t: T) => void;
   onDelete: (t: T) => void;
 }) {
-  return (
-    <div className="tx-table">
-      {items.map(t => {
-        const CatIcon =
-          t.type === 'Transfer'
-            ? ArrowLeftRight
-            : t.type === 'Repayment'
-              ? Repeat
-              : catIcons[t.category] || ArrowUpRight;
+  const renderRow = (t: T, showDateInMeta: boolean) => {
+    const CatIcon =
+      t.type === 'Transfer'
+        ? ArrowLeftRight
+        : t.type === 'Repayment'
+          ? Repeat
+          : catIcons[t.category] || ArrowUpRight;
 
+    return (
+      <div className="txrow" key={t.id}>
+        <span
+          className={
+            'txicon ' +
+            (t.type === 'Expense' || t.type === 'Repayment' ? 'expense' : 'transfer')
+          }
+        >
+          <CatIcon size={17} />
+        </span>
+        <span className="txdesc">
+          <b>{t.note || t.category}</b>
+          <small>
+            {t.type === 'Repayment'
+              ? 'Repayment to Father'
+              : t.type === 'Transfer'
+                ? 'Bank ↔ Cash Transfer'
+                : t.category}{' '}
+            · {name(t.from)}
+            {t.type === 'Transfer' && t.to ? ' → ' + name(t.to) : ''}
+            {t.payment && t.type === 'Expense' ? ` · ${t.payment}` : ''}
+            {showDateInMeta ? ` · ${dateLabel(t.date)}` : ''}
+          </small>
+        </span>
+        <b
+          className={
+            t.type === 'Expense' || t.type === 'Repayment' ? 'tx-amount red' : 'tx-amount'
+          }
+        >
+          {t.type === 'Expense' || t.type === 'Repayment' ? '−' : ''}
+          {money(t.amount)}
+        </b>
+        <div className="row-actions">
+          <button
+            className="icon row-action"
+            aria-label="Edit record"
+            onClick={() => onEdit(t)}
+            title="Edit"
+          >
+            <Edit3 size={14} />
+          </button>
+          <button
+            className="icon row-action delete-action"
+            aria-label="Delete record"
+            onClick={() => onDelete(t)}
+            title="Delete"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  if (!groupedByDate) {
+    return <div className="tx-table">{items.map(t => renderRow(t, true))}</div>;
+  }
+
+  const groups: { date: string; rows: T[]; expenseTotal: number; transferTotal: number }[] = [];
+  const byDate = new Map<string, { date: string; rows: T[]; expenseTotal: number; transferTotal: number }>();
+
+  for (const t of items) {
+    let group = byDate.get(t.date);
+    if (!group) {
+      group = { date: t.date, rows: [], expenseTotal: 0, transferTotal: 0 };
+      byDate.set(t.date, group);
+      groups.push(group);
+    }
+    group.rows.push(t);
+    if (t.type === 'Expense' || t.type === 'Repayment') {
+      group.expenseTotal = roundCurrency(group.expenseTotal + t.amount);
+    } else {
+      group.transferTotal = roundCurrency(group.transferTotal + t.amount);
+    }
+  }
+
+  return (
+    <div className="tx-date-groups">
+      {groups.map(group => {
+        const { dateText, weekdayText } = formatDateGroupHeader(group.date);
         return (
-          <div className="txrow" key={t.id}>
-            <span
-              className={
-                'txicon ' +
-                (t.type === 'Expense' || t.type === 'Repayment' ? 'expense' : 'transfer')
-              }
-            >
-              <CatIcon size={17} />
-            </span>
-            <span className="txdesc">
-              <b>{t.note || t.category}</b>
-              <small>
-                {t.type === 'Repayment'
-                  ? 'Repayment to Father'
-                  : t.type === 'Transfer'
-                    ? 'Bank ↔ Cash Transfer'
-                    : t.category}{' '}
-                · {name(t.from)}
-                {t.type === 'Transfer' && t.to ? ' → ' + name(t.to) : ''}
-                {t.payment && t.type === 'Expense' ? ` · ${t.payment}` : ''} · {dateLabel(t.date)}
-              </small>
-            </span>
-            <b
-              className={
-                t.type === 'Expense' || t.type === 'Repayment' ? 'tx-amount red' : 'tx-amount'
-              }
-            >
-              {t.type === 'Expense' || t.type === 'Repayment' ? '−' : ''}
-              {money(t.amount)}
-            </b>
-            <div className="row-actions">
-              <button
-                className="icon row-action"
-                aria-label="Edit record"
-                onClick={() => onEdit(t)}
-                title="Edit"
-              >
-                <Edit3 size={14} />
-              </button>
-              <button
-                className="icon row-action delete-action"
-                aria-label="Delete record"
-                onClick={() => onDelete(t)}
-                title="Delete"
-              >
-                <Trash2 size={14} />
-              </button>
+          <section className="tx-date-group" key={group.date}>
+            <div className="tx-date-head">
+              <div className="tx-date-left">
+                <span className="tx-date-label">{dateText}</span>
+                {weekdayText && <span className="tx-date-weekday">{weekdayText}</span>}
+              </div>
+              <div className="tx-date-total">
+                {group.expenseTotal > 0 ? (
+                  <span>Expenses: {money(group.expenseTotal)}</span>
+                ) : (
+                  <span>Transfers: {money(group.transferTotal)}</span>
+                )}
+              </div>
             </div>
-          </div>
+            <div className="tx-table">{group.rows.map(t => renderRow(t, false))}</div>
+          </section>
         );
       })}
     </div>
